@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GeoMeasure: Elevation Profile</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        
+        #map { flex: 1; width: 100%; z-index: 1; }
+
+        /* HUD */
+        .hud-container {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            min-width: 200px;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+
+        .hud-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 2px; }
+        .hud-value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .hud-unit { font-size: 14px; color: #ccc; }
+        
+        .alt-readout {
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            font-size: 12px;
+            color: #4CAF50;
+        }
+
+        /* Controls */
+        .controls-container {
+            background: white;
+            padding: 15px;
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .primary-actions { display: flex; gap: 10px; }
+        
+        .btn {
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            touch-action: manipulation;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-start { background-color: #4CAF50; color: white; }
+        .btn-stop { background-color: #f44336; color: white; display: none; }
+        .btn-secondary { background-color: #f0f0f0; color: #333; font-size: 14px; padding: 12px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Measurement List */
+        .measurements-list {
+            max-height: 0;
+            overflow-y: auto;
+            transition: max-height 0.3s;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .measurements-list.open { max-height: 180px; margin-bottom: 10px; border: 1px solid #eee; }
+        
+        .measurement-item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .measurement-info { display: flex; flex-direction: column; }
+        .measurement-main { font-weight: 600; font-size: 15px; }
+        .measurement-sub { font-size: 12px; color: #666; }
+        
+        .btn-graph {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-graph:hover { background: #f0f0f0; border-color: #ccc; }
+
+        /* Modal for Graph */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 200px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 15px 0;
+            position: relative;
+            border: 1px solid #eee;
+        }
+        
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .modal-title { font-weight: bold; font-size: 18px; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 0 5px; }
+
+        /* Markers & Status */
+        .marker-pin {
+            width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
+            background: #2196F3; position: absolute; transform: rotate(-45deg);
+            left: 50%; top: 50%; margin: -15px 0 0 -15px;
+            box-shadow: 1px 1px 4px rgba(0,0,0,0.5);
+        }
+        .marker-pin::after {
+            content: ''; width: 14px; height: 14px; margin: 8px 0 0 8px;
+            background: white; position: absolute; border-radius: 50%;
+        }
+        .start-marker .marker-pin { background: #4CAF50; }
+        .end-marker .marker-pin { background: #f44336; }
+        
+        .gps-status {
+            position: absolute; top: 20px; right: 20px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: #ccc; z-index: 1000; border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .gps-status.active { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
+        .gps-status.error { background: #f44336; }
+        .gps-status.searching { background: #FFC107; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+    <div id="gpsStatus" class="gps-status" title="GPS Status"></div>
+
+    <div class="hud-container">
+        <div class="hud-label">Straight Distance</div>
+        <div>
+            <span id="distanceValue" class="hud-value">0.00</span>
+            <span class="hud-unit">m</span>
+        </div>
+        <div class="alt-readout" id="altValue">Alt: ---</div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="controls-container">
+        <div id="measurementsList" class="measurements-list"></div>
+
+        <div class="primary-actions">
+            <button id="btnAction" class="btn btn-start">
+                <span>📍</span> Set Start Point
+            </button>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+            <button id="btnUndo" class="btn btn-secondary" disabled>Undo Last</button>
+            <button id="btnDownload" class="btn btn-secondary" disabled>Export GeoJSON</button>
+        </div>
+    </div>
+
+    <!-- Graph Modal -->
+    <div class="modal-overlay" id="graphModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Elevation Profile</div>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="profileChart" class="chart-canvas"></canvas>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: #666;">
+                <span id="modalStartAlt">Start: 0m</span>
+                <span id="modalGain">Gain: +0m</span>
+                <span id="modalEndAlt">End: 0m</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // --- State ---
+        const state = {
+            isMeasuring: false,
+            currentLocation: null, // {lat, lng, alt}
+            startPoint: null,
+            activeTrace: [], // Array of {lat, lng, alt, distFromStart}
+            segments: [], 
+            watchId: null
+        };
+
+        const map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap', maxZoom: 20
+        }).addTo(map);
+
+        const layers = {
+            user: L.layerGroup().addTo(map),       
+            active: L.layerGroup().addTo(map),     
+            completed: L.featureGroup().addTo(map) 
+        };
+
+        const ui = {
+            btnAction: document.getElementById('btnAction'),
+            btnUndo: document.getElementById('btnUndo'),
+            btnDownload: document.getElementById('btnDownload'),
+            distanceValue: document.getElementById('distanceValue'),
+            altValue: document.getElementById('altValue'),
+            list: document.getElementById('measurementsList'),
+            gpsStatus: document.getElementById('gpsStatus'),
+            hudUnit: document.querySelector('.hud-unit')
+        };
+
+        const createIcon = (type) => L.divIcon({
+            className: `${type}-marker`,
+            html: `<div class="marker-pin"></div>`,
+            iconSize: [30, 42], iconAnchor: [15, 42]
+        });
+
+        // --- Logic ---
+
+        function init() {
+            if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+                alert("HTTPS Required for GPS Altitude");
+            }
+            startGPS();
+            ui.btnAction.addEventListener('click', toggleMeasurement);
+            ui.btnUndo.addEventListener('click', undoLastSegment);
+            ui.btnDownload.addEventListener('click', downloadGeoJSON);
+            
+            // Handle canvas resize
+            window.addEventListener('resize', () => {
+                if(document.getElementById('graphModal').classList.contains('active')) {
+                   // Optional: Redraw chart if needed
+                }
+            });
+        }
+
+        function startGPS() {
+            if (!navigator.geolocation) {
+                ui.hudUnit.innerText = "No GPS";
+                return;
+            }
+            ui.gpsStatus.className = 'gps-status searching';
+            
+            const options = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
+            
+            if (state.watchId) navigator.geolocation.clearWatch(state.watchId);
+            state.watchId = navigator.geolocation.watchPosition(updateLocation, handleError, options);
+        }
+
+        function updateLocation(position) {
+            const { latitude, longitude, altitude, accuracy } = position.coords;
+            const latLng = L.latLng(latitude, longitude);
+            
+            // Store current state (use 0 if alt is null)
+            const currentAlt = altitude !== null ? altitude : 0;
+            state.currentLocation = { ...latLng, alt: currentAlt, lat: latitude, lng: longitude };
+
+            // Update UI Marker
+            layers.user.clearLayers();
+            L.marker(latLng, {
+                icon: L.divIcon({
+                    className: 'user',
+                    html: '<div style="background:#2196F3;width:16px;height:16px;border:3px solid white;border-radius:50%;box-shadow:0 0 5px rgba(0,0,0,0.3)"></div>',
+                    iconSize:[16,16], iconAnchor:[8,8]
+                })
+            }).addTo(layers.user);
+            L.circle(latLng, {radius: accuracy, color: '#2196F3', weight: 1, fillOpacity: 0.1}).addTo(layers.user);
+
+            ui.gpsStatus.className = 'gps-status active';
+            ui.gpsStatus.title = `Accuracy: ${Math.round(accuracy)}m`;
+            ui.altValue.innerText = `Alt: ${currentAlt.toFixed(1)}m`;
+
+            // Initial center
+            if (state.segments.length === 0 && !state.isMeasuring && map.getZoom() < 5) {
+                map.setView(latLng, 18);
+            }
+
+            // MEASURING LOGIC
+            if (state.isMeasuring && state.startPoint) {
+                const dist = state.startPoint.distanceTo(latLng);
+                ui.distanceValue.innerText = dist.toFixed(2);
+                
+                // Record Trace Point (Breadcrumbs for Elevation)
+                state.activeTrace.push({
+                    lat: latitude,
+                    lng: longitude,
+                    alt: currentAlt,
+                    dist: dist // Distance from start to this point
+                });
+
+                // Update Line
+                layers.active.eachLayer(l => { if (l instanceof L.Polyline) layers.active.removeLayer(l); });
+                L.polyline([state.startPoint, latLng], {
+                    color: '#333', dashArray: '10, 10', weight: 3, opacity: 0.8
+                }).addTo(layers.active);
+            }
+        }
+
+        function handleError(err) {
+            console.error(err);
+            ui.gpsStatus.className = 'gps-status error';
+            ui.hudUnit.innerText = "GPS Error";
+        }
+
+        function toggleMeasurement() {
+            if (!state.currentLocation) { alert("Waiting for GPS..."); return; }
+
+            if (!state.isMeasuring) {
+                // START
+                state.isMeasuring = true;
+                state.startPoint = L.latLng(state.currentLocation.lat, state.currentLocation.lng);
+                state.activeTrace = []; // Clear old trace
+                
+                // Add first point
+                state.activeTrace.push({
+                    lat: state.currentLocation.lat,
+                    lng: state.currentLocation.lng,
+                    alt: state.currentLocation.alt,
+                    dist: 0
+                });
+
+                ui.btnAction.innerHTML = "<span>🛑</span> Finish Segment";
+                ui.btnAction.className = "btn btn-stop";
+                ui.btnUndo.disabled = true;
+                ui.btnDownload.disabled = true;
+                
+                layers.active.clearLayers();
+                L.marker(state.startPoint, {icon: createIcon('start')}).addTo(layers.active);
+
+            } else {
+                // STOP
+                finishSegment();
+            }
+        }
+
+        function finishSegment() {
+            const endPoint = L.latLng(state.currentLocation.lat, state.currentLocation.lng);
+            const straightDist = state.startPoint.distanceTo(endPoint);
+            
+            // Smooth the altitude trace (Simple Moving Average)
+            const smoothedTrace = smoothAltitude(state.activeTrace);
+
+            const segment = {
+                id: Date.now(),
+                start: state.startPoint,
+                end: endPoint,
+                distance: straightDist,
+                trace: smoothedTrace // Save full path for graph
+            };
+            
+            state.segments.push(segment);
+
+            // Draw finalized line
+            const line = L.polyline([segment.start, segment.end], {color: '#2196F3', weight: 5}).addTo(layers.completed);
+            L.marker(segment.start, {icon: createIcon('start')}).addTo(layers.completed);
+            L.marker(segment.end, {icon: createIcon('end')}).addTo(layers.completed);
+            line.bindPopup(`Dist: ${straightDist.toFixed(2)}m`);
+
+            // Reset UI
+            state.isMeasuring = false;
+            state.startPoint = null;
+            layers.active.clearLayers();
+            ui.btnAction.innerHTML = "<span>📍</span> Set Start Point";
+            ui.btnAction.className = "btn btn-start";
+            ui.distanceValue.innerText = "0.00";
+            ui.btnUndo.disabled = false;
+            ui.btnDownload.disabled = false;
+
+            updateList();
+            map.fitBounds(layers.completed.getBounds(), {padding: [50,50]});
+        }
+
+        // Simple Low-Pass Filter for Altitude
+        function smoothAltitude(trace) {
+            if (trace.length < 3) return trace;
+            // Window size for moving average
+            const windowSize = 5;
+            return trace.map((point, i) => {
+                let sum = 0;
+                let count = 0;
+                for (let j = Math.max(0, i - Math.floor(windowSize/2)); j < Math.min(trace.length, i + Math.floor(windowSize/2) + 1); j++) {
+                    sum += trace[j].alt;
+                    count++;
+                }
+                return { ...point, alt: sum / count };
+            });
+        }
+
+        function updateList() {
+            ui.list.innerHTML = '';
+            if (state.segments.length > 0) {
+                ui.list.classList.add('open');
+                state.segments.slice().reverse().forEach((seg, index) => {
+                    const idx = state.segments.length - index; // Correct ID number
+                    const div = document.createElement('div');
+                    div.className = 'measurement-item';
+                    div.innerHTML = `
+                        <div class="measurement-info">
+                            <div class="measurement-main">#${idx} &bull; ${seg.distance.toFixed(1)}m</div>
+                            <div class="measurement-sub">
+                                Alt: ${seg.trace[0].alt.toFixed(0)}m → ${seg.trace[seg.trace.length-1].alt.toFixed(0)}m
+                            </div>
+                        </div>
+                        <button class="btn-graph" onclick="showGraph(${seg.id})">
+                            📈 Graph
+                        </button>
+                    `;
+                    ui.list.appendChild(div);
+                });
+            } else {
+                ui.list.classList.remove('open');
+            }
+        }
+
+        function undoLastSegment() {
+            if (state.segments.length === 0) return;
+            state.segments.pop();
+            layers.completed.clearLayers();
+            state.segments.forEach(seg => {
+                L.polyline([seg.start, seg.end], {color: '#2196F3', weight: 5}).addTo(layers.completed);
+                L.marker(seg.start, {icon: createIcon('start')}).addTo(layers.completed);
+                L.marker(seg.end, {icon: createIcon('end')}).addTo(layers.completed);
+            });
+            updateList();
+            if (state.segments.length === 0) {
+                ui.btnUndo.disabled = true;
+                ui.btnDownload.disabled = true;
+            }
+        }
+
+        // --- Charting Logic ---
+
+        window.showGraph = function(segId) {
+            const seg = state.segments.find(s => s.id === segId);
+            if (!seg) return;
+
+            document.getElementById('graphModal').classList.add('active');
+            drawChart(seg.trace);
+            
+            const startAlt = seg.trace[0].alt;
+            const endAlt = seg.trace[seg.trace.length - 1].alt;
+            const gain = endAlt - startAlt;
+            
+            document.getElementById('modalStartAlt').innerText = `Start: ${startAlt.toFixed(1)}m`;
+            document.getElementById('modalEndAlt').innerText = `End: ${endAlt.toFixed(1)}m`;
+            document.getElementById('modalGain').innerText = `Change: ${gain > 0 ? '+' : ''}${gain.toFixed(1)}m`;
+            document.getElementById('modalGain').style.color = gain >= 0 ? '#4CAF50' : '#f44336';
+        };
+
+        window.closeModal = function() {
+            document.getElementById('graphModal').classList.remove('active');
+        };
+
+        function drawChart(data) {
+            const canvas = document.getElementById('profileChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Handle high DPI displays
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            
+            const width = rect.width;
+            const height = rect.height;
+            const padding = 30;
+
+            ctx.clearRect(0, 0, width, height);
+
+            if (data.length < 2) {
+                ctx.fillText("Not enough data points", width/2, height/2);
+                return;
+            }
+
+            // Find Ranges
+            const maxDist = data[data.length - 1].dist;
+            let minAlt = Infinity, maxAlt = -Infinity;
+            data.forEach(p => {
+                if(p.alt < minAlt) minAlt = p.alt;
+                if(p.alt > maxAlt) maxAlt = p.alt;
+            });
+            
+            // Add buffer to Y-axis so line isn't on edge
+            const altRange = maxAlt - minAlt || 1; // avoid divide by zero
+            minAlt -= altRange * 0.1; 
+            maxAlt += altRange * 0.1;
+
+            // Map functions
+            const getX = (dist) => padding + (dist / maxDist) * (width - padding * 2);
+            const getY = (alt) => height - padding - ((alt - minAlt) / (maxAlt - minAlt)) * (height - padding * 2);
+
+            // Draw Fill
+            ctx.beginPath();
+            ctx.moveTo(getX(0), height - padding); // Bottom left
+            data.forEach(p => ctx.lineTo(getX(p.dist), getY(p.alt))); // Line
+            ctx.lineTo(getX(maxDist), height - padding); // Bottom right
+            ctx.fillStyle = 'rgba(33, 150, 243, 0.2)';
+            ctx.fill();
+
+            // Draw Line
+            ctx.beginPath();
+            data.forEach((p, i) => {
+                if (i === 0) ctx.moveTo(getX(p.dist), getY(p.alt));
+                else ctx.lineTo(getX(p.dist), getY(p.alt));
+            });
+            ctx.strokeStyle = '#2196F3';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw Axis Lines & Text
+            ctx.fillStyle = '#666';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+
+            // Y-Axis labels (Min/Max Alt)
+            ctx.fillText(Math.round(maxAlt) + 'm', 15, getY(maxAlt) + 3);
+            ctx.fillText(Math.round(minAlt) + 'm', 15, getY(minAlt) + 3);
+
+            // X-Axis labels (Start/End Dist)
+            ctx.fillText('0m', getX(0), height - 10);
+            ctx.fillText(Math.round(maxDist) + 'm', getX(maxDist), height - 10);
+            
+            // Draw axis lines
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, height - padding); // Y axis
+            ctx.lineTo(width - padding, height - padding); // X axis
+            ctx.stroke();
+        }
+
+        function downloadGeoJSON() {
+            const features = state.segments.map((seg, index) => ({
+                type: "Feature",
+                properties: {
+                    id: index + 1,
+                    distance: seg.distance,
+                    start_alt: seg.trace[0].alt,
+                    end_alt: seg.trace[seg.trace.length-1].alt
+                },
+                geometry: {
+                    type: "LineString",
+                    // Export with Z coordinates (lng, lat, alt)
+                    coordinates: seg.trace.map(p => [p.lng, p.lat, p.alt]) 
+                }
+            }));
+
+            const geojson = { type: "FeatureCollection", features: features };
+            const blob = new Blob([JSON.stringify(geojson, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `survey_${new Date().toISOString().slice(0,10)}.geojson`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        init();
+    </script>
+</body>
+</html>
