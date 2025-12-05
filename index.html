@@ -3,211 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GeoMeasure: Elevation Profile</title>
+    <title>GeoMeasure: Top Banner UI</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; background: #eee; }
         
         #map { flex: 1; width: 100%; z-index: 1; }
 
-        /* HUD */
-        .hud-container {
+        /* --- TOP BANNER --- */
+        .top-banner {
             position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 0; left: 0; right: 0;
             z-index: 1000;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(30, 30, 30, 0.95);
             color: white;
-            padding: 15px 25px;
-            border-radius: 30px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            min-width: 200px;
-            backdrop-filter: blur(4px);
-            pointer-events: none;
-        }
-
-        .hud-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 2px; }
-        .hud-value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
-        .hud-unit { font-size: 14px; color: #ccc; }
-        
-        .alt-readout {
-            margin-top: 5px;
-            padding-top: 5px;
-            border-top: 1px solid rgba(255,255,255,0.2);
-            font-size: 12px;
-            color: #4CAF50;
-        }
-
-        /* Controls */
-        .controls-container {
-            background: white;
-            padding: 15px;
-            padding-bottom: max(15px, env(safe-area-inset-bottom));
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
+            padding: 10px 15px;
+            padding-top: max(10px, env(safe-area-inset-top));
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
 
-        .primary-actions { display: flex; gap: 10px; }
-        
-        .btn {
-            border: none;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s;
-            flex: 1;
+        /* Top Row: Display + Main Action */
+        .banner-main-row {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            touch-action: manipulation;
+            justify-content: space-between;
+            gap: 15px;
         }
-        .btn:active { transform: scale(0.98); }
-        .btn-start { background-color: #4CAF50; color: white; }
-        .btn-stop { background-color: #f44336; color: white; display: none; }
-        .btn-secondary { background-color: #f0f0f0; color: #333; font-size: 14px; padding: 12px; }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Measurement List */
-        .measurements-list {
-            max-height: 0;
-            overflow-y: auto;
-            transition: max-height 0.3s;
-            background: #f9f9f9;
-            border-radius: 8px;
+        .display-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
-        .measurements-list.open { max-height: 180px; margin-bottom: 10px; border: 1px solid #eee; }
+
+        .hud-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
+        
+        .distance-readout { display: flex; align-items: baseline; gap: 4px; }
+        .hud-value { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+        .hud-unit { font-size: 14px; color: #888; }
+        
+        .alt-readout { font-size: 12px; color: #4CAF50; margin-top: 4px; display: flex; align-items: center; gap: 4px;}
+
+        /* Main Action Button (Start/Stop) */
+        .btn-main {
+            height: 50px;
+            padding: 0 24px;
+            border-radius: 25px;
+            border: none;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .btn-start { background-color: #4CAF50; color: white; }
+        .btn-start:active { background-color: #3d8b40; transform: scale(0.96); }
+        
+        .btn-stop { background-color: #f44336; color: white; animation: pulse 2s infinite; }
+        .btn-stop:active { background-color: #d32f2f; transform: scale(0.96); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); } 100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); } }
+
+        /* Secondary Toolbar (Undo/Download) */
+        .banner-tools {
+            display: flex;
+            gap: 10px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tool-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #ddd;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            justify-content: center;
+        }
+        .tool-btn:hover { background: rgba(255,255,255,0.2); }
+        .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* --- BOTTOM LIST --- */
+        .bottom-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            right: 10px;
+            z-index: 900;
+            pointer-events: none; /* Let map clicks pass through empty areas */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            max-height: 40vh;
+        }
+
+        .measurements-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            overflow-y: auto;
+            pointer-events: auto;
+            max-height: 0;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .measurements-list.open { max-height: 250px; padding: 5px 0; }
         
         .measurement-item {
-            padding: 12px;
+            padding: 12px 15px;
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .measurement-info { display: flex; flex-direction: column; }
-        .measurement-main { font-weight: 600; font-size: 15px; }
-        .measurement-sub { font-size: 12px; color: #666; }
+        .measurement-item:last-child { border-bottom: none; }
+        
+        .m-info { display: flex; flex-direction: column; }
+        .m-main { font-weight: 600; font-size: 15px; color: #333; }
+        .m-sub { font-size: 12px; color: #666; margin-top: 2px; }
         
         .btn-graph {
-            background: white;
-            border: 1px solid #ddd;
-            padding: 6px 10px;
-            border-radius: 6px;
+            background: #f0f4ff;
+            color: #2196F3;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            font-weight: 600;
         }
-        .btn-graph:hover { background: #f0f0f0; border-color: #ccc; }
 
-        /* Modal for Graph */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
+        /* --- MODAL --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
         .modal-overlay.active { display: flex; }
-        
-        .modal-content {
-            background: white;
-            width: 100%;
-            max-width: 500px;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        }
-        
-        .chart-container {
-            width: 100%;
-            height: 200px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            margin: 15px 0;
-            position: relative;
-            border: 1px solid #eee;
-        }
-        
-        .chart-canvas {
-            width: 100%;
-            height: 100%;
-        }
-
+        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .chart-container { width: 100%; height: 200px; background: #f8f9fa; border-radius: 8px; margin: 15px 0; border: 1px solid #eee; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .modal-title { font-weight: bold; font-size: 18px; }
-        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; padding: 0 5px; }
+        .modal-title { font-weight: bold; font-size: 18px; color: #333; }
+        .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
 
-        /* Markers & Status */
-        .marker-pin {
-            width: 30px; height: 30px; border-radius: 50% 50% 50% 0;
-            background: #2196F3; position: absolute; transform: rotate(-45deg);
-            left: 50%; top: 50%; margin: -15px 0 0 -15px;
-            box-shadow: 1px 1px 4px rgba(0,0,0,0.5);
-        }
-        .marker-pin::after {
-            content: ''; width: 14px; height: 14px; margin: 8px 0 0 8px;
-            background: white; position: absolute; border-radius: 50%;
-        }
-        .start-marker .marker-pin { background: #4CAF50; }
-        .end-marker .marker-pin { background: #f44336; }
-        
+        /* --- GPS STATUS --- */
         .gps-status {
-            position: absolute; top: 20px; right: 20px;
-            width: 14px; height: 14px; border-radius: 50%;
-            background: #ccc; z-index: 1000; border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #ccc; display: inline-block;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
-        .gps-status.active { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
+        .gps-status.active { background: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
         .gps-status.error { background: #f44336; }
         .gps-status.searching { background: #FFC107; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Markers */
+        .marker-pin { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; background: #2196F3; position: absolute; transform: rotate(-45deg); left: 50%; top: 50%; margin: -15px 0 0 -15px; box-shadow: 1px 1px 4px rgba(0,0,0,0.5); }
+        .marker-pin::after { content: ''; width: 14px; height: 14px; margin: 8px 0 0 8px; background: white; position: absolute; border-radius: 50%; }
+        .start-marker .marker-pin { background: #4CAF50; }
+        .end-marker .marker-pin { background: #f44336; }
+
     </style>
 </head>
 <body>
 
-    <div id="gpsStatus" class="gps-status" title="GPS Status"></div>
-
-    <div class="hud-container">
-        <div class="hud-label">Straight Distance</div>
-        <div>
-            <span id="distanceValue" class="hud-value">0.00</span>
-            <span class="hud-unit">m</span>
+    <!-- TOP BANNER -->
+    <div class="top-banner">
+        <div class="banner-main-row">
+            <div class="display-group">
+                <div class="hud-label">Distance to Start</div>
+                <div class="distance-readout">
+                    <span id="distanceValue" class="hud-value">0.00</span>
+                    <span class="hud-unit">meters</span>
+                </div>
+                <div class="alt-readout">
+                    <div id="gpsStatus" class="gps-status" title="GPS"></div>
+                    <span id="altValue">Alt: ---</span>
+                </div>
+            </div>
+            
+            <button id="btnAction" class="btn-main btn-start">
+                <span>📍</span> Start
+            </button>
         </div>
-        <div class="alt-readout" id="altValue">Alt: ---</div>
+
+        <div class="banner-tools">
+            <button id="btnUndo" class="tool-btn" disabled>
+                <span>↩</span> Undo Last
+            </button>
+            <button id="btnDownload" class="tool-btn" disabled>
+                <span>⬇</span> Save GeoJSON
+            </button>
+        </div>
     </div>
 
     <div id="map"></div>
 
-    <div class="controls-container">
+    <!-- BOTTOM LIST -->
+    <div class="bottom-panel">
         <div id="measurementsList" class="measurements-list"></div>
-
-        <div class="primary-actions">
-            <button id="btnAction" class="btn btn-start">
-                <span>📍</span> Set Start Point
-            </button>
-        </div>
-
-        <div style="display: flex; gap: 10px;">
-            <button id="btnUndo" class="btn btn-secondary" disabled>Undo Last</button>
-            <button id="btnDownload" class="btn btn-secondary" disabled>Export GeoJSON</button>
-        </div>
     </div>
 
-    <!-- Graph Modal -->
+    <!-- MODAL -->
     <div class="modal-overlay" id="graphModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -215,7 +223,7 @@
                 <button class="close-btn" onclick="closeModal()">×</button>
             </div>
             <div class="chart-container">
-                <canvas id="profileChart" class="chart-canvas"></canvas>
+                <canvas id="profileChart"></canvas>
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 13px; color: #666;">
                 <span id="modalStartAlt">Start: 0m</span>
@@ -227,12 +235,11 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // --- State ---
         const state = {
             isMeasuring: false,
-            currentLocation: null, // {lat, lng, alt}
+            currentLocation: null,
             startPoint: null,
-            activeTrace: [], // Array of {lat, lng, alt, distFromStart}
+            activeTrace: [],
             segments: [], 
             watchId: null
         };
@@ -265,8 +272,6 @@
             iconSize: [30, 42], iconAnchor: [15, 42]
         });
 
-        // --- Logic ---
-
         function init() {
             if (!window.isSecureContext && window.location.hostname !== 'localhost') {
                 alert("HTTPS Required for GPS Altitude");
@@ -276,10 +281,9 @@
             ui.btnUndo.addEventListener('click', undoLastSegment);
             ui.btnDownload.addEventListener('click', downloadGeoJSON);
             
-            // Handle canvas resize
             window.addEventListener('resize', () => {
                 if(document.getElementById('graphModal').classList.contains('active')) {
-                   // Optional: Redraw chart if needed
+                   // Resize logic handled in drawChart
                 }
             });
         }
@@ -292,7 +296,6 @@
             ui.gpsStatus.className = 'gps-status searching';
             
             const options = { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 };
-            
             if (state.watchId) navigator.geolocation.clearWatch(state.watchId);
             state.watchId = navigator.geolocation.watchPosition(updateLocation, handleError, options);
         }
@@ -300,12 +303,9 @@
         function updateLocation(position) {
             const { latitude, longitude, altitude, accuracy } = position.coords;
             const latLng = L.latLng(latitude, longitude);
-            
-            // Store current state (use 0 if alt is null)
             const currentAlt = altitude !== null ? altitude : 0;
             state.currentLocation = { ...latLng, alt: currentAlt, lat: latitude, lng: longitude };
 
-            // Update UI Marker
             layers.user.clearLayers();
             L.marker(latLng, {
                 icon: L.divIcon({
@@ -320,25 +320,18 @@
             ui.gpsStatus.title = `Accuracy: ${Math.round(accuracy)}m`;
             ui.altValue.innerText = `Alt: ${currentAlt.toFixed(1)}m`;
 
-            // Initial center
             if (state.segments.length === 0 && !state.isMeasuring && map.getZoom() < 5) {
                 map.setView(latLng, 18);
             }
 
-            // MEASURING LOGIC
             if (state.isMeasuring && state.startPoint) {
                 const dist = state.startPoint.distanceTo(latLng);
                 ui.distanceValue.innerText = dist.toFixed(2);
                 
-                // Record Trace Point (Breadcrumbs for Elevation)
                 state.activeTrace.push({
-                    lat: latitude,
-                    lng: longitude,
-                    alt: currentAlt,
-                    dist: dist // Distance from start to this point
+                    lat: latitude, lng: longitude, alt: currentAlt, dist: dist
                 });
 
-                // Update Line
                 layers.active.eachLayer(l => { if (l instanceof L.Polyline) layers.active.removeLayer(l); });
                 L.polyline([state.startPoint, latLng], {
                     color: '#333', dashArray: '10, 10', weight: 3, opacity: 0.8
@@ -349,7 +342,7 @@
         function handleError(err) {
             console.error(err);
             ui.gpsStatus.className = 'gps-status error';
-            ui.hudUnit.innerText = "GPS Error";
+            ui.altValue.innerText = "GPS Error";
         }
 
         function toggleMeasurement() {
@@ -359,18 +352,16 @@
                 // START
                 state.isMeasuring = true;
                 state.startPoint = L.latLng(state.currentLocation.lat, state.currentLocation.lng);
-                state.activeTrace = []; // Clear old trace
-                
-                // Add first point
-                state.activeTrace.push({
+                state.activeTrace = [{
                     lat: state.currentLocation.lat,
                     lng: state.currentLocation.lng,
                     alt: state.currentLocation.alt,
                     dist: 0
-                });
+                }];
 
-                ui.btnAction.innerHTML = "<span>🛑</span> Finish Segment";
-                ui.btnAction.className = "btn btn-stop";
+                ui.btnAction.innerHTML = "<span>🛑</span> Stop";
+                ui.btnAction.classList.remove('btn-start');
+                ui.btnAction.classList.add('btn-stop');
                 ui.btnUndo.disabled = true;
                 ui.btnDownload.disabled = true;
                 
@@ -386,8 +377,6 @@
         function finishSegment() {
             const endPoint = L.latLng(state.currentLocation.lat, state.currentLocation.lng);
             const straightDist = state.startPoint.distanceTo(endPoint);
-            
-            // Smooth the altitude trace (Simple Moving Average)
             const smoothedTrace = smoothAltitude(state.activeTrace);
 
             const segment = {
@@ -395,23 +384,23 @@
                 start: state.startPoint,
                 end: endPoint,
                 distance: straightDist,
-                trace: smoothedTrace // Save full path for graph
+                trace: smoothedTrace
             };
             
             state.segments.push(segment);
 
-            // Draw finalized line
             const line = L.polyline([segment.start, segment.end], {color: '#2196F3', weight: 5}).addTo(layers.completed);
             L.marker(segment.start, {icon: createIcon('start')}).addTo(layers.completed);
             L.marker(segment.end, {icon: createIcon('end')}).addTo(layers.completed);
             line.bindPopup(`Dist: ${straightDist.toFixed(2)}m`);
 
-            // Reset UI
             state.isMeasuring = false;
             state.startPoint = null;
             layers.active.clearLayers();
-            ui.btnAction.innerHTML = "<span>📍</span> Set Start Point";
-            ui.btnAction.className = "btn btn-start";
+            
+            ui.btnAction.innerHTML = "<span>📍</span> Start";
+            ui.btnAction.classList.remove('btn-stop');
+            ui.btnAction.classList.add('btn-start');
             ui.distanceValue.innerText = "0.00";
             ui.btnUndo.disabled = false;
             ui.btnDownload.disabled = false;
@@ -420,17 +409,13 @@
             map.fitBounds(layers.completed.getBounds(), {padding: [50,50]});
         }
 
-        // Simple Low-Pass Filter for Altitude
         function smoothAltitude(trace) {
             if (trace.length < 3) return trace;
-            // Window size for moving average
             const windowSize = 5;
             return trace.map((point, i) => {
-                let sum = 0;
-                let count = 0;
+                let sum = 0, count = 0;
                 for (let j = Math.max(0, i - Math.floor(windowSize/2)); j < Math.min(trace.length, i + Math.floor(windowSize/2) + 1); j++) {
-                    sum += trace[j].alt;
-                    count++;
+                    sum += trace[j].alt; count++;
                 }
                 return { ...point, alt: sum / count };
             });
@@ -441,19 +426,15 @@
             if (state.segments.length > 0) {
                 ui.list.classList.add('open');
                 state.segments.slice().reverse().forEach((seg, index) => {
-                    const idx = state.segments.length - index; // Correct ID number
+                    const idx = state.segments.length - index; 
                     const div = document.createElement('div');
                     div.className = 'measurement-item';
                     div.innerHTML = `
-                        <div class="measurement-info">
-                            <div class="measurement-main">#${idx} &bull; ${seg.distance.toFixed(1)}m</div>
-                            <div class="measurement-sub">
-                                Alt: ${seg.trace[0].alt.toFixed(0)}m → ${seg.trace[seg.trace.length-1].alt.toFixed(0)}m
-                            </div>
+                        <div class="m-info">
+                            <div class="m-main">#${idx} &bull; ${seg.distance.toFixed(1)}m</div>
+                            <div class="m-sub">Alt Gain: ${(seg.trace[seg.trace.length-1].alt - seg.trace[0].alt).toFixed(1)}m</div>
                         </div>
-                        <button class="btn-graph" onclick="showGraph(${seg.id})">
-                            📈 Graph
-                        </button>
+                        <button class="btn-graph" onclick="showGraph(${seg.id})">Chart</button>
                     `;
                     ui.list.appendChild(div);
                 });
@@ -478,12 +459,9 @@
             }
         }
 
-        // --- Charting Logic ---
-
         window.showGraph = function(segId) {
             const seg = state.segments.find(s => s.id === segId);
             if (!seg) return;
-
             document.getElementById('graphModal').classList.add('active');
             drawChart(seg.trace);
             
@@ -504,8 +482,6 @@
         function drawChart(data) {
             const canvas = document.getElementById('profileChart');
             const ctx = canvas.getContext('2d');
-            
-            // Handle high DPI displays
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
             canvas.width = rect.width * dpr;
@@ -519,84 +495,48 @@
             ctx.clearRect(0, 0, width, height);
 
             if (data.length < 2) {
-                ctx.fillText("Not enough data points", width/2, height/2);
+                ctx.fillText("Data unavailable", width/2, height/2);
                 return;
             }
 
-            // Find Ranges
             const maxDist = data[data.length - 1].dist;
             let minAlt = Infinity, maxAlt = -Infinity;
-            data.forEach(p => {
-                if(p.alt < minAlt) minAlt = p.alt;
-                if(p.alt > maxAlt) maxAlt = p.alt;
-            });
+            data.forEach(p => { if(p.alt < minAlt) minAlt = p.alt; if(p.alt > maxAlt) maxAlt = p.alt; });
             
-            // Add buffer to Y-axis so line isn't on edge
-            const altRange = maxAlt - minAlt || 1; // avoid divide by zero
-            minAlt -= altRange * 0.1; 
-            maxAlt += altRange * 0.1;
+            const altRange = maxAlt - minAlt || 1;
+            minAlt -= altRange * 0.1; maxAlt += altRange * 0.1;
 
-            // Map functions
             const getX = (dist) => padding + (dist / maxDist) * (width - padding * 2);
             const getY = (alt) => height - padding - ((alt - minAlt) / (maxAlt - minAlt)) * (height - padding * 2);
 
-            // Draw Fill
             ctx.beginPath();
-            ctx.moveTo(getX(0), height - padding); // Bottom left
-            data.forEach(p => ctx.lineTo(getX(p.dist), getY(p.alt))); // Line
-            ctx.lineTo(getX(maxDist), height - padding); // Bottom right
+            ctx.moveTo(getX(0), height - padding);
+            data.forEach(p => ctx.lineTo(getX(p.dist), getY(p.alt)));
+            ctx.lineTo(getX(maxDist), height - padding);
             ctx.fillStyle = 'rgba(33, 150, 243, 0.2)';
             ctx.fill();
 
-            // Draw Line
             ctx.beginPath();
-            data.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(getX(p.dist), getY(p.alt));
-                else ctx.lineTo(getX(p.dist), getY(p.alt));
-            });
-            ctx.strokeStyle = '#2196F3';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            data.forEach((p, i) => { i === 0 ? ctx.moveTo(getX(p.dist), getY(p.alt)) : ctx.lineTo(getX(p.dist), getY(p.alt)); });
+            ctx.strokeStyle = '#2196F3'; ctx.lineWidth = 2; ctx.stroke();
 
-            // Draw Axis Lines & Text
-            ctx.fillStyle = '#666';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-
-            // Y-Axis labels (Min/Max Alt)
+            ctx.fillStyle = '#666'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
             ctx.fillText(Math.round(maxAlt) + 'm', 15, getY(maxAlt) + 3);
             ctx.fillText(Math.round(minAlt) + 'm', 15, getY(minAlt) + 3);
-
-            // X-Axis labels (Start/End Dist)
             ctx.fillText('0m', getX(0), height - 10);
             ctx.fillText(Math.round(maxDist) + 'm', getX(maxDist), height - 10);
             
-            // Draw axis lines
-            ctx.strokeStyle = '#eee';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(padding, padding);
-            ctx.lineTo(padding, height - padding); // Y axis
-            ctx.lineTo(width - padding, height - padding); // X axis
+            ctx.strokeStyle = '#eee'; ctx.lineWidth = 1; ctx.beginPath();
+            ctx.moveTo(padding, padding); ctx.lineTo(padding, height - padding); ctx.lineTo(width - padding, height - padding);
             ctx.stroke();
         }
 
         function downloadGeoJSON() {
             const features = state.segments.map((seg, index) => ({
                 type: "Feature",
-                properties: {
-                    id: index + 1,
-                    distance: seg.distance,
-                    start_alt: seg.trace[0].alt,
-                    end_alt: seg.trace[seg.trace.length-1].alt
-                },
-                geometry: {
-                    type: "LineString",
-                    // Export with Z coordinates (lng, lat, alt)
-                    coordinates: seg.trace.map(p => [p.lng, p.lat, p.alt]) 
-                }
+                properties: { id: index + 1, distance: seg.distance, start_alt: seg.trace[0].alt, end_alt: seg.trace[seg.trace.length-1].alt },
+                geometry: { type: "LineString", coordinates: seg.trace.map(p => [p.lng, p.lat, p.alt]) }
             }));
-
             const geojson = { type: "FeatureCollection", features: features };
             const blob = new Blob([JSON.stringify(geojson, null, 2)], {type: "application/json"});
             const url = URL.createObjectURL(blob);
