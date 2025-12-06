@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GeoMeasure: Satellite & Radial Mode</title>
+    <title>GeoMeasure: Dark Mode & Accuracy</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,7 +38,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            min-width: 0; /* allows text truncation if needed */
+            min-width: 0;
         }
 
         .hud-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; }
@@ -47,29 +47,47 @@
         .hud-value { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
         .hud-unit { font-size: 14px; color: #888; }
         
-        .alt-readout { font-size: 12px; color: #4CAF50; margin-top: 4px; display: flex; align-items: center; gap: 4px;}
-
-        /* Action Buttons */
-        .action-group {
+        /* Stats Block (Alt + Accuracy) */
+        .stats-block {
             display: flex;
-            gap: 8px;
+            flex-direction: column;
+            margin-top: 4px;
         }
-
-        .btn-main {
-            height: 48px;
-            padding: 0 20px;
-            border-radius: 24px;
-            border: none;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
+        
+        .alt-readout { 
+            font-size: 13px; 
+            color: #4CAF50; 
+            font-weight: 500;
+        }
+        
+        .acc-readout {
+            font-size: 11px;
+            color: #888;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 6px;
-            white-space: nowrap;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            margin-top: 2px;
+        }
+
+        /* GPS Dot */
+        .gps-status {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #ccc; display: inline-block;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .gps-status.active { background: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
+        .gps-status.error { background: #f44336; }
+        .gps-status.searching { background: #FFC107; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Action Buttons */
+        .action-group { display: flex; gap: 8px; }
+
+        .btn-main {
+            height: 48px; padding: 0 20px; border-radius: 24px; border: none;
+            font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         
         .btn-start { background-color: #4CAF50; color: white; flex: 2; }
@@ -79,11 +97,8 @@
         .btn-stop:active { background-color: #d32f2f; transform: scale(0.96); }
 
         .btn-reuse { 
-            background-color: #2196F3; 
-            color: white; 
-            display: none; /* Hidden by default */
-            flex: 1;
-            padding: 0 15px;
+            background-color: #2196F3; color: white; 
+            display: none; flex: 1; padding: 0 15px;
         }
         .btn-reuse:active { background-color: #1976D2; transform: scale(0.96); }
 
@@ -91,25 +106,15 @@
 
         /* Toolbar */
         .banner-tools {
-            display: flex;
-            gap: 10px;
-            padding-top: 5px;
+            display: flex; gap: 10px; padding-top: 5px;
             border-top: 1px solid rgba(255,255,255,0.1);
         }
 
         .tool-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #ddd;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex: 1;
-            justify-content: center;
+            background: rgba(255,255,255,0.1); border: none; color: #ddd;
+            padding: 8px 12px; border-radius: 6px; font-size: 13px;
+            cursor: pointer; display: flex; align-items: center; gap: 6px;
+            flex: 1; justify-content: center;
         }
         .tool-btn:hover { background: rgba(255,255,255,0.2); }
         .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -117,56 +122,41 @@
         /* --- BASEMAP TOGGLE --- */
         .basemap-toggle {
             position: absolute;
-            top: 140px; /* Below banner */
+            top: 155px; /* Pushed down slightly */
             right: 15px;
             z-index: 950;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            padding: 8px;
+            padding: 0;
             cursor: pointer;
-            font-size: 20px;
-            width: 44px;
-            height: 44px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
             border: 2px solid white;
+            font-size: 22px;
+            user-select: none;
         }
-        .basemap-toggle:active { background: #f0f0f0; transform: scale(0.95); }
-        .basemap-toggle img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+        .basemap-toggle:active { transform: scale(0.95); }
 
         /* --- BOTTOM LIST --- */
         .bottom-panel {
-            position: absolute;
-            bottom: 20px;
-            left: 10px;
-            right: 10px;
-            z-index: 900;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
+            position: absolute; bottom: 20px; left: 10px; right: 10px;
+            z-index: 900; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: flex-end;
             max-height: 40vh;
         }
 
         .measurements-list {
-            background: white;
-            border-radius: 12px;
+            background: white; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            overflow-y: auto;
-            pointer-events: auto;
-            max-height: 0;
-            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto; pointer-events: auto;
+            max-height: 0; transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .measurements-list.open { max-height: 250px; padding: 5px 0; }
         
         .measurement-item {
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 12px 15px; border-bottom: 1px solid #eee;
+            display: flex; justify-content: space-between; align-items: center;
         }
         .measurement-item:last-child { border-bottom: none; }
         
@@ -189,17 +179,6 @@
         .modal-title { font-weight: bold; font-size: 18px; color: #333; }
         .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
 
-        /* GPS Dot */
-        .gps-status {
-            width: 10px; height: 10px; border-radius: 50%;
-            background: #ccc; display: inline-block;
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        }
-        .gps-status.active { background: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
-        .gps-status.error { background: #f44336; }
-        .gps-status.searching { background: #FFC107; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
-
         /* Markers */
         .marker-pin { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; background: #2196F3; position: absolute; transform: rotate(-45deg); left: 50%; top: 50%; margin: -15px 0 0 -15px; box-shadow: 1px 1px 4px rgba(0,0,0,0.5); }
         .marker-pin::after { content: ''; width: 14px; height: 14px; margin: 8px 0 0 8px; background: white; position: absolute; border-radius: 50%; }
@@ -219,9 +198,15 @@
                     <span id="distanceValue" class="hud-value">0.00</span>
                     <span class="hud-unit">meters</span>
                 </div>
-                <div class="alt-readout">
-                    <div id="gpsStatus" class="gps-status" title="GPS"></div>
-                    <span id="altValue">Alt: ---</span>
+                
+                <div class="stats-block">
+                    <div class="alt-readout">
+                        <span id="altValue">Alt: ---</span>
+                    </div>
+                    <div class="acc-readout">
+                        <div id="gpsStatus" class="gps-status" title="GPS"></div>
+                        <span id="accValue">Searching...</span>
+                    </div>
                 </div>
             </div>
             
@@ -246,7 +231,7 @@
     </div>
 
     <!-- BASEMAP TOGGLE -->
-    <button id="basemapToggle" class="basemap-toggle" title="Switch Map Style">
+    <button id="basemapToggle" class="basemap-toggle" title="Switch Map Style (Streets / Satellite / Dark)">
         🌍
     </button>
 
@@ -281,11 +266,11 @@
             isMeasuring: false,
             currentLocation: null,
             startPoint: null,
-            lastStartPoint: null, // Stores the previous start for reuse
+            lastStartPoint: null,
             activeTrace: [],
             segments: [], 
             watchId: null,
-            mapType: 'streets' // streets | satellite
+            mapMode: 0 // 0: Streets, 1: Satellite, 2: Dark
         };
 
         const map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
@@ -297,10 +282,13 @@
             }),
             satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: '&copy; Esri', maxZoom: 19
+            }),
+            dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO', maxZoom: 20
             })
         };
         
-        // Init default map
+        // Init default
         basemaps.streets.addTo(map);
 
         const layers = {
@@ -317,6 +305,7 @@
             basemapToggle: document.getElementById('basemapToggle'),
             distanceValue: document.getElementById('distanceValue'),
             altValue: document.getElementById('altValue'),
+            accValue: document.getElementById('accValue'),
             list: document.getElementById('measurementsList'),
             gpsStatus: document.getElementById('gpsStatus'),
             hudUnit: document.querySelector('.hud-unit')
@@ -335,30 +324,38 @@
             startGPS();
             
             ui.btnAction.addEventListener('click', toggleMeasurement);
-            ui.btnReuse.addEventListener('click', startFromLast); // New Handler
+            ui.btnReuse.addEventListener('click', startFromLast);
             ui.btnUndo.addEventListener('click', undoLastSegment);
             ui.btnDownload.addEventListener('click', downloadGeoJSON);
             
-            // Basemap Toggle Logic
-            ui.basemapToggle.addEventListener('click', () => {
-                if (state.mapType === 'streets') {
-                    map.removeLayer(basemaps.streets);
-                    basemaps.satellite.addTo(map);
-                    state.mapType = 'satellite';
-                    ui.basemapToggle.innerText = '🗺️'; // Change icon to map
-                } else {
-                    map.removeLayer(basemaps.satellite);
-                    basemaps.streets.addTo(map);
-                    state.mapType = 'streets';
-                    ui.basemapToggle.innerText = '🌍'; // Change icon to globe
-                }
-            });
+            // 3-Way Toggle Logic
+            ui.basemapToggle.addEventListener('click', cycleMap);
 
             window.addEventListener('resize', () => {
                 if(document.getElementById('graphModal').classList.contains('active')) {
                    // Resize logic handled in drawChart
                 }
             });
+        }
+
+        function cycleMap() {
+            // Remove all
+            map.removeLayer(basemaps.streets);
+            map.removeLayer(basemaps.satellite);
+            map.removeLayer(basemaps.dark);
+            
+            state.mapMode = (state.mapMode + 1) % 3;
+            
+            if (state.mapMode === 0) {
+                basemaps.streets.addTo(map);
+                ui.basemapToggle.innerText = '🌍';
+            } else if (state.mapMode === 1) {
+                basemaps.satellite.addTo(map);
+                ui.basemapToggle.innerText = '🛰️';
+            } else {
+                basemaps.dark.addTo(map);
+                ui.basemapToggle.innerText = '🌑';
+            }
         }
 
         function startGPS() {
@@ -391,7 +388,10 @@
 
             ui.gpsStatus.className = 'gps-status active';
             ui.gpsStatus.title = `Accuracy: ${Math.round(accuracy)}m`;
+            
+            // Stats Updates
             ui.altValue.innerText = `Alt: ${currentAlt.toFixed(1)}m`;
+            ui.accValue.innerText = `±${Math.round(accuracy)}m`;
 
             if (state.segments.length === 0 && !state.isMeasuring && map.getZoom() < 5) {
                 map.setView(latLng, 18);
@@ -415,36 +415,29 @@
         function handleError(err) {
             console.error(err);
             ui.gpsStatus.className = 'gps-status error';
-            ui.altValue.innerText = "GPS Error";
+            ui.accValue.innerText = "GPS Error";
         }
 
         function toggleMeasurement() {
             if (!state.currentLocation) { alert("Waiting for GPS..."); return; }
 
             if (!state.isMeasuring) {
-                // START NEW
                 startMeasuring(state.currentLocation);
             } else {
-                // STOP
                 finishSegment();
             }
         }
         
         function startFromLast() {
             if (!state.lastStartPoint) return;
-            // Use the OLD start point, but Current location determines distance
             startMeasuring(state.lastStartPoint, true);
         }
 
         function startMeasuring(locationObj, isReuse = false) {
             state.isMeasuring = true;
             
-            // If reusing, we use the saved L.latLng, otherwise we create new from current location
             if (isReuse) {
-                state.startPoint = locationObj; // This is already an L.latLng object
-                // For trace, we need to fake the start altitude/lat/lng based on the old point
-                // But simplified: we just start trace from CURRENT user location 
-                // because the trace is about the user's path, even if the "ruler" starts elsewhere.
+                state.startPoint = locationObj; 
                 state.activeTrace = [];
             } else {
                 state.startPoint = L.latLng(locationObj.lat, locationObj.lng);
@@ -456,14 +449,10 @@
                 }];
             }
 
-            // UI Updates
             ui.btnAction.innerHTML = "<span>🛑</span> Stop";
             ui.btnAction.classList.remove('btn-start');
             ui.btnAction.classList.add('btn-stop');
-            
-            // Hide Reuse button while measuring
             ui.btnReuse.style.display = 'none';
-            
             ui.btnUndo.disabled = true;
             ui.btnDownload.disabled = true;
             
@@ -476,7 +465,6 @@
             const straightDist = state.startPoint.distanceTo(endPoint);
             const smoothedTrace = smoothAltitude(state.activeTrace);
 
-            // SAVE START POINT FOR NEXT TIME
             state.lastStartPoint = state.startPoint;
 
             const segment = {
@@ -498,14 +486,10 @@
             state.startPoint = null;
             layers.active.clearLayers();
             
-            // Reset UI
             ui.btnAction.innerHTML = "<span>📍</span> Start";
             ui.btnAction.classList.remove('btn-stop');
             ui.btnAction.classList.add('btn-start');
-            
-            // Show Reuse Button since we now have a lastStartPoint
             ui.btnReuse.style.display = 'flex';
-            
             ui.distanceValue.innerText = "0.00";
             ui.btnUndo.disabled = false;
             ui.btnDownload.disabled = false;
@@ -534,11 +518,8 @@
                     const idx = state.segments.length - index; 
                     const div = document.createElement('div');
                     div.className = 'measurement-item';
-                    
-                    // Safe elevation check (trace might be empty if instant click)
                     const startAlt = seg.trace.length > 0 ? seg.trace[0].alt : 0;
                     const endAlt = seg.trace.length > 0 ? seg.trace[seg.trace.length-1].alt : 0;
-                    
                     div.innerHTML = `
                         <div class="m-info">
                             <div class="m-main">#${idx} &bull; ${seg.distance.toFixed(1)}m</div>
@@ -566,8 +547,6 @@
             if (state.segments.length === 0) {
                 ui.btnUndo.disabled = true;
                 ui.btnDownload.disabled = true;
-                // If we undo everything, we might lose lastStartPoint context, but let's keep it in memory
-                // unless we want to hide the button. Let's keep the button visible if there is valid data in memory.
             }
         }
 
@@ -576,11 +555,9 @@
             if (!seg || seg.trace.length < 2) { alert("Not enough data for graph"); return; }
             document.getElementById('graphModal').classList.add('active');
             drawChart(seg.trace);
-            
             const startAlt = seg.trace[0].alt;
             const endAlt = seg.trace[seg.trace.length - 1].alt;
             const gain = endAlt - startAlt;
-            
             document.getElementById('modalStartAlt').innerText = `Start: ${startAlt.toFixed(1)}m`;
             document.getElementById('modalEndAlt').innerText = `End: ${endAlt.toFixed(1)}m`;
             document.getElementById('modalGain').innerText = `Change: ${gain > 0 ? '+' : ''}${gain.toFixed(1)}m`;
@@ -599,10 +576,7 @@
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
             ctx.scale(dpr, dpr);
-            
-            const width = rect.width;
-            const height = rect.height;
-            const padding = 30;
+            const width = rect.width; const height = rect.height; const padding = 30;
 
             ctx.clearRect(0, 0, width, height);
 
@@ -611,7 +585,6 @@
             const maxDist = data[data.length - 1].dist;
             let minAlt = Infinity, maxAlt = -Infinity;
             data.forEach(p => { if(p.alt < minAlt) minAlt = p.alt; if(p.alt > maxAlt) maxAlt = p.alt; });
-            
             const altRange = maxAlt - minAlt || 1;
             minAlt -= altRange * 0.1; maxAlt += altRange * 0.1;
 
